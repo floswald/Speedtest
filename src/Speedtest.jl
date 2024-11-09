@@ -1,7 +1,8 @@
 module Speedtest
-using Dates
-using DataFrames 
-using CSV
+
+using JSON
+using JLD2
+
 
 function run_test()
 
@@ -9,33 +10,19 @@ function run_test()
         error("you must install the speedtest CLI from https://www.speedtest.net/apps/cli")
     end
 
-    csv = joinpath(@__DIR__,"..","timings.csv")
-    tmp,io = mktemp()
+    jld = joinpath(@__DIR__,"..","timings.jld2")
 
-    t = now()   # time stamp
-    # append to existing csv or create new
-    if !isfile(csv)
-    
-        @info "first run - creating output csv"
-        run(`speedtest -f csv  --output-header \> $tmp`)
+    @info "running test"
 
-        # read back and add time stamp
-        d = CSV.read(tmp, DataFrame)
-        d.timestamp .= t
+    r = JSON.parse(read(`speedtest -f json`, String))
 
-        # write out 
-        CSV.write(csv, d)
-
-    else
-        run(`speedtest -f csv  --output-header \> $tmp`)
-
-        # read back and add time stamp
-        d = CSV.read(tmp, DataFrame)
-        d.timestamp .= t
-
-        # write out 
-        CSV.write(csv, d, append = true)
+    jldopen(jld, "w") do f
+        f[r["timestamp"]] = r
     end
+
+    @info "done"
+    
+    return r 
 end
 
-end # module Speedtest
+end
